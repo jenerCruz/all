@@ -1,36 +1,29 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Asistencias PRO</title>
-    <!-- Incluimos Tailwind CSS para el diseño sofisticado y responsive -->
-      <link rel="stylesheet" href="./assets/css/tailwind.min.css">
-        <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#4f46e5">
-      
-    <!-- Incluimos Lucide Icons (CDN) -->
-      <script defer src="./assets/js/lucide.min.js"></script>
-    <!-- Incluimos Chart.js (CDN) -->
-      <script src="./assets/js/chart.umd.min.js"></script>
-    <!-- Incluimos Tesseract.js (CDN) para OCR -->
-    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
-    <style>
-        /* Estilos base para el cuerpo y la barra lateral */
-        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
-        .sidebar { transition: transform 0.3s ease; }
-        .tab-btn.active { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); }
-        /* Estilo para el contenedor de la cuadrícula de promotores */
-        #team-grid {
-            display: grid;
-            gap: 1.5rem;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        }
-        /* Estilos del modal (para una mejor sensación de profundidad) */
-        .modal-content {
-            transition: all 0.3s ease;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Asistencias PRO</title>
+
+  <!-- Tailwind CSS compilado local -->
+  <link href="./assets/css/tailwind.css" rel="stylesheet">
+
+  <!-- Manifest y favicon -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" href="./assets/icons/icon-192x192.png" type="image/png">
+
+  <!-- Librerías JS locales -->
+  <script src="./assets/js/lucide.min.js"></script>
+  <script src="./assets/js/chart.umd.min.js"></script>
+  <script src="./assets/js/tesseract.min.js"></script>
+
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+    .sidebar { transition: transform 0.3s ease; }
+    .tab-btn.active { box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px -1px rgba(0,0,0,0.1); }
+    #team-grid { display: grid; gap: 1.5rem; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .modal-content { transition: all 0.3s ease; }
+  </style>
 </head>
 <body class="flex h-screen overflow-hidden">
 
