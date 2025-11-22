@@ -1,22 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestión de Asistencias PRO</title>
-
-  <!-- Tailwind CSS compilado local -->
-  <link href="./assets/css/tailwind.css" rel="stylesheet">
-
-  <!-- Manifest y favicon -->
-  <link rel="manifest" href="./manifest.json">
-  <link rel="icon" href="./assets/icons/icon-192x192.png" type="image/png">
-
-  <!-- Librerías JS locales -->
-  <script src="./assets/js/lucide.min.js"></script>
-  <script src="./assets/js/chart.umd.min.js"></script>
-  <script src="./assets/js/tesseract.min.js"></script>
-
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Asistencias PRO</title>
+    <!-- Incluimos Tailwind CSS para el diseño sofisticado y responsive -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluimos Lucide Icons (CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Incluimos Chart.js (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Incluimos Tesseract.js (CDN) para OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
     <style>
         /* Estilos base para el cuerpo y la barra lateral */
         body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
@@ -535,19 +530,7 @@
         document.getElementById('evidence-date').value = new Date().toISOString().split('T')[0];
         loadCurrentEvidence(userId, document.getElementById('evidence-date').value);
     }
-// =============================================
-// FUNCIONES FALTANTES (REPARACIÓN SIN DISEÑO)
-// =============================================
 
-function renderDocumentationView() { ... }
-
-async function calculateUserStats(userId) { ... }
-
-function renderUserChart(userId) { ... }
-
-async function replaceAll(store, data) { ... }
-
-function toggleScheduleFields(day) { ... }
     function switchIndTab(subTabName) {
         // Ocultar todas las sub-vistas y resetear estilos
         document.getElementById('ind-view-evidencia').classList.add('hidden');
