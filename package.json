@@ -1,0 +1,20 @@
+{
+  "name": "all",
+  "version": "1.0.0",
+  "description": "Proyecto con Tailwind, Lucide, Chart.js y Tesseract.js",
+  "main": "index.js",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./assets/css/tailwind.css --minify"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.17",
+    "chart.js": "^4.4.1",
+    "lucide": "^0.469.0",
+    "tesseract.js": "^5.0.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.22",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.17"
+  }
+}
