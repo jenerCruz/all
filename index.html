@@ -1,0 +1,1745 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Asistencias PRO</title>
+    <!-- Incluimos Tailwind CSS para el diseño sofisticado y responsive -->
+      <link rel="stylesheet" href="./assets/css/tailwind.min.css">
+        <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#4f46e5">
+      
+    <!-- Incluimos Lucide Icons (CDN) -->
+      <script defer src="./assets/js/lucide.min.js"></script>
+    <!-- Incluimos Chart.js (CDN) -->
+      <script src="./assets/js/chart.umd.min.js"></script>
+    <!-- Incluimos Tesseract.js (CDN) para OCR -->
+    <script src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'></script>
+    <style>
+        /* Estilos base para el cuerpo y la barra lateral */
+        body { font-family: 'Inter', sans-serif; background-color: #f7f9fb; }
+        .sidebar { transition: transform 0.3s ease; }
+        .tab-btn.active { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1); }
+        /* Estilo para el contenedor de la cuadrícula de promotores */
+        #team-grid {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        }
+        /* Estilos del modal (para una mejor sensación de profundidad) */
+        .modal-content {
+            transition: all 0.3s ease;
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <!-- BARRA LATERAL (Sidebar) -->
+    <div id="sidebar" class="sidebar flex-shrink-0 w-64 bg-white border-r border-slate-200 p-4 pt-8 h-full shadow-lg z-50 fixed md:relative transform -translate-x-full md:translate-x-0">
+        <div class="flex flex-col h-full">
+            <h1 class="text-2xl font-black text-indigo-600 mb-8 flex items-center gap-2">
+                <i data-lucide="shield-check" class="w-6 h-6"></i> Asistencias PRO
+            </h1>
+
+            <!-- Navegación Principal -->
+            <nav class="flex-grow space-y-2">
+                <button id="nav-team" onclick="showTab('team')" class="tab-btn active bg-slate-50 w-full flex items-center gap-3 p-3 rounded-xl text-slate-700 hover:bg-slate-100 font-medium transition duration-150">
+                    <i data-lucide="users" class="w-5 h-5 text-indigo-500"></i> Gestión de Equipo
+                </button>
+                <button id="nav-individual" onclick="showTab('individual')" class="tab-btn w-full hidden items-center gap-3 p-3 rounded-xl text-slate-700 hover:bg-slate-100 font-medium transition duration-150">
+                    <div id="ind-initials" class="w-6 h-6 rounded-full bg-indigo-500 text-white flex items-center justify-center text-xs">UN</div>
+                    <span id="ind-name">Usuario Activo</span>
+                </button>
+                <button id="nav-docs" onclick="showTab('docs')" class="tab-btn w-full flex items-center gap-3 p-3 rounded-xl text-slate-700 hover:bg-slate-100 font-medium transition duration-150">
+                    <i data-lucide="clipboard-list" class="w-5 h-5 text-indigo-500"></i> Documentación/Pendientes
+                </button>
+            </nav>
+
+            <!-- Configuración / Estado Inferior -->
+            <div class="mt-8 pt-4 border-t border-slate-100 space-y-3">
+                <h3 class="text-xs font-semibold text-slate-500 uppercase">Sincronización</h3>
+                <button onclick="syncFromGist()" class="w-full flex items-center gap-3 p-3 rounded-xl text-sm text-slate-700 hover:bg-slate-100 transition duration-150 border border-slate-200">
+                    <i data-lucide="cloud-download" class="w-4 h-4 text-green-500"></i> Descargar de Gist
+                </button>
+                <button onclick="syncToGist()" class="w-full flex items-center gap-3 p-3 rounded-xl text-sm text-slate-700 hover:bg-slate-100 transition duration-150 border border-slate-200">
+                    <i data-lucide="cloud-upload" class="w-4 h-4 text-blue-500"></i> Subir a Gist
+                </button>
+                <div class="flex items-center justify-between text-xs text-slate-500 mt-4">
+                    <span class="flex items-center gap-1" id="db-status">
+                        <span class="w-2 h-2 rounded-full bg-yellow-500"></span> Inicializando...
+                    </span>
+                    <button onclick="showTab('config')" class="text-indigo-500 hover:text-indigo-700 font-medium">
+                        <i data-lucide="settings" class="w-4 h-4 inline-block"></i> Config
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="flex-grow p-4 md:p-8 overflow-y-auto">
+        
+        <!-- Botón para abrir sidebar en móvil -->
+        <button id="menu-btn" class="md:hidden fixed top-4 left-4 z-50 p-2 bg-indigo-600 text-white rounded-full shadow-lg" aria-label="Abrir Menú">
+            <i data-lucide="menu" class="w-6 h-6"></i>
+        </button>
+
+        <!-- Vista 1: Gestión de Equipo -->
+        <div id="view-team" class="transition-opacity duration-300">
+            <header class="flex justify-between items-center mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">Gestión de Promotores</h2>
+                <button onclick="openUserModal()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-indigo-700 transition duration-150 flex items-center gap-2">
+                    <i data-lucide="user-plus" class="w-5 h-5"></i> Añadir Promotor
+                </button>
+            </header>
+            <div id="team-grid" class="mt-8">
+                <!-- Se rellena con JS -->
+            </div>
+        </div>
+
+        <!-- Vista 2: Seguimiento Individual -->
+        <div id="view-individual" class="hidden transition-opacity duration-300">
+            <header class="mb-6 flex items-center gap-4 border-b pb-4">
+                <div id="ind-initials" class="w-12 h-12 rounded-full bg-indigo-600 text-white flex items-center justify-center font-extrabold text-xl flex-shrink-0">UN</div>
+                <div>
+                    <h2 class="text-3xl font-bold text-slate-800" id="ind-name">Nombre del Promotor</h2>
+                    <p class="text-sm text-slate-500" id="ind-branch">Sucursal: Sucursal X</p>
+                </div>
+            </header>
+            
+            <!-- Sub-Navegación -->
+            <div class="flex border-b mb-6">
+                <button id="subtab-evidencia" onclick="switchIndTab('evidencia')" class="subtab-btn text-blue-600 border-b-2 border-blue-600 bg-blue-50 py-2 px-4 font-semibold transition duration-150">
+                    Asistencia y Evidencia
+                </button>
+                <button id="subtab-historial" onclick="switchIndTab('historial')" class="subtab-btn text-slate-500 hover:text-slate-700 py-2 px-4 font-semibold transition duration-150">
+                    Historial y Stats
+                </button>
+                <button id="subtab-schedule" onclick="switchIndTab('schedule')" class="subtab-btn text-slate-500 hover:text-slate-700 py-2 px-4 font-semibold transition duration-150">
+                    Horario
+                </button>
+            </div>
+
+            <!-- Sub-Vista: Evidencia -->
+            <div id="ind-view-evidencia">
+                <section class="mb-8 p-6 bg-white rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-slate-700">Registro de Asistencia</h3>
+                    
+                    <div class="mb-4">
+                        <label for="evidence-date" class="block text-sm font-medium text-slate-700">Fecha de Asistencia</label>
+                        <input type="date" id="evidence-date" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 p-2">
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-6 mb-6">
+                        <!-- Entrada -->
+                        <div class="border border-slate-200 rounded-xl p-4">
+                            <h4 class="font-medium text-slate-600 mb-2">Entrada (Check-In)</h4>
+                            <div id="preview-entrada" class="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+                                <span class="text-slate-400 text-[10px]">Vacío</span>
+                            </div>
+                            <input type="file" accept="image/*" onchange="handleFileSelect(event, 'entrada')" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+                        
+                        <!-- Salida -->
+                        <div class="border border-slate-200 rounded-xl p-4">
+                            <h4 class="font-medium text-slate-600 mb-2">Salida (Check-Out)</h4>
+                            <div id="preview-salida" class="w-full h-32 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden mb-3">
+                                <span class="text-slate-400 text-[10px]">Vacío</span>
+                            </div>
+                            <input type="file" accept="image/*" onchange="handleFileSelect(event, 'salida')" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+                    </div>
+
+                    <button onclick="saveEvidence()" class="w-full bg-green-600 text-white px-4 py-3 rounded-xl shadow-md hover:bg-green-700 transition duration-150 font-semibold flex items-center justify-center gap-2">
+                        <i data-lucide="save" class="w-5 h-5"></i> Guardar Asistencia del Día
+                    </button>
+                </section>
+            </div>
+
+            <!-- Sub-Vista: Historial -->
+            <div id="ind-view-historial" class="hidden">
+                <section class="grid md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-indigo-500">
+                        <p class="text-sm text-slate-500">Días Completos (Semana)</p>
+                        <p class="text-3xl font-extrabold text-slate-800" id="ind-weekly-count">0</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-green-500">
+                        <p class="text-sm text-slate-500">Progreso Semanal</p>
+                        <p class="text-3xl font-extrabold text-slate-800" id="ind-weekly-percent">0%</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border-l-4 border-slate-500">
+                        <p class="text-sm text-slate-500">Total de Registros</p>
+                        <p class="text-3xl font-extrabold text-slate-800" id="ind-total-count">0</p>
+                    </div>
+                </section>
+                
+                <section class="bg-white p-6 rounded-xl shadow-md mb-8">
+                    <h3 class="text-xl font-semibold mb-4 text-slate-700">Gráfico de Asistencia Semanal</h3>
+                    <div class="h-64">
+                        <canvas id="userChart"></canvas>
+                    </div>
+                </section>
+
+                <section class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-slate-700">Historial de Registros</h3>
+                    <div id="user-history-list" class="divide-y divide-slate-100">
+                        <!-- Se rellena con JS -->
+                    </div>
+                </section>
+            </div>
+
+            <!-- Sub-Vista: Horario (Schedule) -->
+            <div id="ind-view-schedule" class="hidden">
+                <section class="p-6 bg-white rounded-xl shadow-md">
+                    <h3 class="text-xl font-semibold mb-6 text-slate-700">Horario Asignado</h3>
+                    <div id="schedule-list" class="divide-y divide-slate-100 mb-6">
+                        <!-- Se rellena con JS -->
+                    </div>
+                    
+                    <button onclick="openScheduleModal()" class="bg-blue-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-blue-700 transition duration-150 flex items-center gap-2">
+                        <i data-lucide="calendar-plus" class="w-5 h-5"></i> Gestionar Horarios
+                    </button>
+                </section>
+            </div>
+        </div>
+
+        <!-- Vista 3: Documentación y Pendientes -->
+        <div id="view-docs" class="hidden transition-opacity duration-300">
+            <header class="mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">Documentación y Pendientes</h2>
+                <p class="text-slate-500">Gestión de reportes semanales, notas e incapacidades.</p>
+            </header>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Columna 1: Reporte Semanal -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-indigo-600 border-b pb-2 flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-5 h-5"></i> Reportes de Asistencia Semanal
+                    </h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <select id="doc-user-select" class="rounded-md border-slate-300 p-2 text-sm w-1/2"></select>
+                        <button onclick="openDocModal('WeeklyReport')" class="bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-indigo-600 transition">
+                            <i data-lucide="plus" class="w-4 h-4 inline-block mr-1"></i> Nuevo
+                        </button>
+                    </div>
+
+                    <div id="weekly-report-list" class="space-y-3">
+                        <p class="text-center text-slate-400 text-sm py-4">Selecciona un promotor para ver sus reportes.</p>
+                    </div>
+                </section>
+
+                <!-- Columna 2: Incapacidades -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-red-600 border-b pb-2 flex items-center gap-2">
+                        <i data-lucide="heart-crack" class="w-5 h-5"></i> Incapacidades Pendientes
+                    </h3>
+                    <button onclick="openDocModal('Incapacity')" class="w-full bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 transition mb-4">
+                        <i data-lucide="file-heart" class="w-4 h-4 inline-block mr-1"></i> Registrar Incapacidad
+                    </button>
+
+                    <div id="incapacity-list" class="space-y-3">
+                        <!-- Se rellena con JS (todas las incapacidades activas) -->
+                    </div>
+                </section>
+            </div>
+        </div>
+        
+        <!-- Vista 4: Configuración -->
+        <div id="view-config" class="hidden transition-opacity duration-300">
+            <header class="mb-6">
+                <h2 class="text-3xl font-bold text-slate-800">Configuración Avanzada</h2>
+                <p class="text-slate-500">Gestión de Gist, limpieza de datos y enlaces.</p>
+            </header>
+
+            <div class="grid md:grid-cols-2 gap-6">
+                <!-- Configuración Gist -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-slate-700 border-b pb-2">Credenciales de Sincronización Gist</h3>
+                    
+                    <div class="mb-4">
+                        <label for="gist-id" class="block text-sm font-medium text-slate-700">Gist ID</label>
+                        <input type="text" id="gist-id" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2" placeholder="ID de tu Gist privado">
+                    </div>
+                    <div class="mb-4">
+                        <label for="gist-token" class="block text-sm font-medium text-slate-700">Personal Access Token (GitHub)</label>
+                        <input type="password" id="gist-token" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2" placeholder="Token con permiso Gist">
+                    </div>
+
+                    <button onclick="saveGistConfig()" class="w-full bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition">Guardar Configuración</button>
+                </section>
+
+                <!-- Herramientas y Mantenimiento -->
+                <section class="bg-white p-6 rounded-xl shadow-lg">
+                    <h3 class="text-xl font-semibold mb-4 text-slate-700 border-b pb-2">Herramientas</h3>
+                    
+                    <p class="text-sm text-slate-500 mb-4">Elimina las asistencias con más de 30 días para optimizar la base de datos local y remota.</p>
+                    <button onclick="cleanOldEvidence()" class="w-full bg-yellow-500 text-white px-4 py-2 rounded-xl hover:bg-yellow-600 transition mb-4">
+                        <i data-lucide="trash-2" class="w-4 h-4 inline-block mr-1"></i> Limpiar Evidencias Antiguas
+                    </button>
+
+                    <div class="pt-4 border-t">
+                        <h3 class="text-xl font-semibold mt-4 mb-4 text-slate-700 border-b pb-2">Enlace PWA Externa</h3>
+                         <p class="text-sm text-slate-500 mb-4">Accede a otra de tus aplicaciones web progresivas.</p>
+                        <a href="https://example.com/otra-pwa-app" target="_blank" class="w-full inline-flex items-center justify-center bg-teal-500 text-white px-4 py-2 rounded-xl hover:bg-teal-600 transition font-medium">
+                            <i data-lucide="external-link" class="w-4 h-4 inline-block mr-1"></i> Ir a Mi Otra PWA
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL DE USUARIO (CRUD) -->
+    <div id="user-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+        <div id="user-modal-content" class="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl scale-95 opacity-0">
+            <h3 class="text-2xl font-bold mb-4 text-slate-800" id="modal-title">Añadir Nuevo Promotor</h3>
+            <input type="hidden" id="edit-user-id" value="new">
+            
+            <div class="mb-4">
+                <label for="input-name" class="block text-sm font-medium text-slate-700">Nombre Completo</label>
+                <input type="text" id="input-name" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2" required>
+            </div>
+            <div class="mb-4">
+                <label for="input-branch" class="block text-sm font-medium text-slate-700">Sucursal / Área</label>
+                <input type="text" id="input-branch" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2" required>
+            </div>
+            <div class="flex items-center mb-6">
+                <input id="input-active" type="checkbox" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                <label for="input-active" class="ml-2 block text-sm text-slate-900">Activo</label>
+            </div>
+            
+            <div class="flex justify-between items-center pt-4 border-t">
+                <button id="btn-delete-user" onclick="deleteUser()" class="bg-red-500 text-white px-4 py-2 rounded-xl shadow-md hover:bg-red-600 transition hidden">Eliminar</button>
+                <div>
+                    <button onclick="closeUserModal()" class="text-slate-500 px-4 py-2 rounded-xl hover:bg-slate-100 transition mr-2">Cancelar</button>
+                    <button onclick="saveUser()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-indigo-700 transition">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE GESTIÓN DE HORARIO -->
+    <div id="schedule-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-lg p-6 shadow-2xl scale-95 opacity-0 modal-content">
+            <h3 class="text-2xl font-bold mb-4 text-slate-800">Gestionar Horario Semanal</h3>
+            <div id="schedule-form-container">
+                <!-- Formulario dinámico de horarios -->
+            </div>
+            <div class="flex justify-end pt-4 border-t">
+                <button onclick="closeScheduleModal()" class="text-slate-500 px-4 py-2 rounded-xl hover:bg-slate-100 transition mr-2">Cerrar</button>
+                <button onclick="saveSchedules()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-indigo-700 transition">Guardar Horarios</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL DE GESTIÓN DE DOCUMENTOS (REPORTES / INCAPACIDADES) -->
+    <div id="doc-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-[100] flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl scale-95 opacity-0 modal-content">
+            <h3 class="text-2xl font-bold mb-4 text-slate-800" id="doc-modal-title">Registrar Documento</h3>
+            <input type="hidden" id="doc-type-input">
+            <input type="hidden" id="doc-edit-id">
+
+            <div class="mb-4" id="doc-user-field">
+                 <label for="doc-modal-user" class="block text-sm font-medium text-slate-700">Promotor</label>
+                <select id="doc-modal-user" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2"></select>
+            </div>
+
+            <div class="mb-4" id="doc-week-field">
+                <label for="doc-modal-week" class="block text-sm font-medium text-slate-700">Semana / Fecha de Inicio</label>
+                <input type="week" id="doc-modal-week" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2">
+            </div>
+
+            <div class="mb-4 hidden" id="doc-end-date-field">
+                <label for="doc-modal-end-date" class="block text-sm font-medium text-slate-700">Fecha de Fin (Incapacidad)</label>
+                <input type="date" id="doc-modal-end-date" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2">
+            </div>
+
+            <div class="mb-4">
+                <label for="doc-modal-status" class="block text-sm font-medium text-slate-700">Estado</label>
+                <select id="doc-modal-status" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2">
+                    <!-- Se rellena con JS según el tipo de documento -->
+                </select>
+            </div>
+
+            <div class="mb-6">
+                <label for="doc-modal-notes" class="block text-sm font-medium text-slate-700">Notas/Detalles</label>
+                <textarea id="doc-modal-notes" rows="3" class="mt-1 block w-full rounded-md border-slate-300 shadow-sm p-2"></textarea>
+            </div>
+
+            <div class="flex justify-end pt-4 border-t">
+                <button onclick="closeDocModal()" class="text-slate-500 px-4 py-2 rounded-xl hover:bg-slate-100 transition mr-2">Cancelar</button>
+                <button onclick="saveDocument()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl shadow-md hover:bg-indigo-700 transition">Guardar Documento</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- TOAST Notification -->
+    <div id="toast" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl opacity-0 transition-all duration-300 pointer-events-none z-[100]">
+        <span id="toast-msg">Mensaje de prueba</span>
+    </div>
+
+    <!-- Overlay para móvil -->
+    <div id="overlay" class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40 hidden" onclick="toggleSidebar()"></div>
+
+<script>
+    /* ============================================================
+       CONFIGURACIÓN GLOBAL
+       ============================================================ */
+    let db;
+    const DB_NAME = 'AsistenciasPRODB';
+    const DB_VERSION = 2; // Incrementar la versión para incluir nuevas tiendas
+
+    // Nombres de las Object Stores (Tablas)
+    const STORES = {
+        USERS: 'users',
+        EVIDENCES: 'evidences',
+        CONFIG: 'config',
+        SCHEDULES: 'schedules', // NUEVO: Horarios asignados por usuario y día
+        DOCUMENTS: 'documents' // NUEVO: Reportes semanales, Incapacidades, etc.
+    };
+
+    let activeUserId = null;
+    let usersList = []; // Cache de usuarios para selects
+
+    const STATUS_OPTIONS = {
+        WeeklyReport: {
+            Pending: 'Pendiente',
+            Reviewed: 'Revisado',
+            Reduced: 'Reducido (Ajustado)', // Por "reducido" del usuario
+            Delivered: 'Entregado (Notas)' // Por "entregado envío notas" del usuario
+        },
+        Incapacity: {
+            Pending: 'Pendiente de Aprobación',
+            Approved: 'Aprobada',
+            Rejected: 'Rechazada',
+            Expired: 'Finalizada'
+        }
+    };
+
+    /* ============================================================
+       UTILIDADES UI
+       ============================================================ */
+    
+    /**
+     * Muestra una notificación temporal.
+     * @param {string} msg - Mensaje a mostrar.
+     * @param {boolean} isError - Si es un mensaje de error.
+     */
+    function showToast(msg, isError = false) {
+        const toast = document.getElementById('toast');
+        const toastMsg = document.getElementById('toast-msg');
+
+        if (!toast || !toastMsg) return console.warn('Toast elements not found.');
+
+        toastMsg.textContent = msg;
+        toast.className = 'fixed bottom-6 left-1/2 transform -translate-x-1/2 px-6 py-3 rounded-full shadow-2xl opacity-0 transition-all duration-300 pointer-events-none z-[70] text-sm font-medium translate-y-10';
+
+        if (isError) {
+            toast.classList.add('bg-red-700', 'text-white');
+        } else {
+            toast.classList.add('bg-slate-900', 'text-white');
+        }
+
+        setTimeout(() => {
+            toast.classList.remove('opacity-0', 'translate-y-10');
+            toast.classList.add('opacity-100', 'translate-y-0');
+        }, 50);
+
+        setTimeout(() => {
+            toast.classList.remove('opacity-100', 'translate-y-0');
+            toast.classList.add('opacity-0', 'translate-y-10');
+        }, 4000);
+    }
+
+    function getInitials(name) {
+        if (!name) return 'UN';
+        const parts = name.split(' ').filter(p => p.length > 0);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return (name[0] || '').toUpperCase() + (name[1] || '').toUpperCase();
+    }
+
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const isHidden = sidebar.classList.contains('-translate-x-full');
+        
+        if (isHidden) {
+            sidebar.classList.remove('-translate-x-full');
+            overlay.classList.remove('hidden');
+        } else {
+            sidebar.classList.add('-translate-x-full');
+            overlay.classList.add('hidden');
+        }
+    }
+
+    document.getElementById('menu-btn').addEventListener('click', toggleSidebar);
+
+    /* ============================================================
+       NAVEGACION Y VISTAS
+       ============================================================ */
+    function showTab(tabName) {
+        // Ocultar todas las vistas y desmarcar botones
+        document.querySelectorAll('[id^="view-"]').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active', 'bg-slate-50'));
+
+        // Mostrar la vista y marcar el botón activo
+        document.getElementById(`view-${tabName}`).classList.remove('hidden');
+        
+        // El nav-individual se marca solo si estamos en esa vista.
+        if (tabName !== 'individual') {
+            document.getElementById(`nav-${tabName}`).classList.add('active', 'bg-slate-50');
+        }
+
+        if (tabName === 'team') {
+            document.getElementById('nav-individual').classList.add('hidden');
+            activeUserId = null;
+        }
+
+        if (tabName === 'docs') {
+            renderDocumentationView();
+        }
+        
+        // Ocultar sidebar en móvil después de navegar
+        if (window.innerWidth < 768) {
+            toggleSidebar();
+        }
+
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    /**
+     * Abre el panel individual para un promotor.
+     */
+    async function openUserPanel(userId, userName, userBranch) {
+        activeUserId = userId;
+        
+        document.getElementById('nav-individual').classList.remove('hidden');
+        
+        document.getElementById('ind-name').textContent = userName;
+        document.getElementById('ind-initials').textContent = getInitials(userName);
+        document.getElementById('ind-branch').textContent = `Sucursal: ${userBranch}`;
+
+        calculateUserStats(userId);
+        
+        showTab('individual');
+        switchIndTab('evidencia'); 
+
+        document.getElementById('evidence-date').value = new Date().toISOString().split('T')[0];
+        loadCurrentEvidence(userId, document.getElementById('evidence-date').value);
+    }
+
+    function switchIndTab(subTabName) {
+        // Ocultar todas las sub-vistas y resetear estilos
+        document.getElementById('ind-view-evidencia').classList.add('hidden');
+        document.getElementById('ind-view-historial').classList.add('hidden');
+        document.getElementById('ind-view-schedule').classList.add('hidden');
+
+        document.querySelectorAll('.subtab-btn').forEach(btn => {
+            btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+            btn.classList.add('text-slate-500', 'hover:text-slate-700');
+        });
+
+        // Activar la sub-pestaña seleccionada
+        document.getElementById(`ind-view-${subTabName}`).classList.remove('hidden');
+        document.getElementById(`subtab-${subTabName}`).classList.add('text-blue-600', 'border-b-2', 'border-blue-600', 'bg-blue-50');
+        document.getElementById(`subtab-${subTabName}`).classList.remove('text-slate-500', 'hover:text-slate-700');
+
+        if (subTabName === 'historial') {
+            renderUserChart(activeUserId);
+            renderUserHistory(activeUserId);
+        } else if (subTabName === 'schedule') {
+            renderUserSchedule(activeUserId);
+        }
+    }
+
+
+    /* ============================================================
+       INDEXEDDB CORE FUNCTIONS
+       ============================================================ */
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+            request.onupgradeneeded = (e) => {
+                db = e.target.result;
+                // Creación/actualización de tiendas
+                for (const storeName of Object.values(STORES)) {
+                    if (!db.objectStoreNames.contains(storeName)) {
+                        let keyPath = 'id';
+                        if (storeName === STORES.CONFIG) {
+                            keyPath = 'key'; // Clave para la configuración (Gist ID/Token)
+                        } else if (storeName === STORES.USERS) {
+                             keyPath = 'id';
+                        } else if (storeName === STORES.SCHEDULES) {
+                             keyPath = 'id'; // id: 'user_day'
+                        } else if (storeName === STORES.DOCUMENTS) {
+                             keyPath = 'id'; // id: 'type_user_date'
+                        }
+
+                        db.createObjectStore(storeName, { keyPath: keyPath });
+                    }
+                }
+            };
+
+            request.onsuccess = (e) => {
+                db = e.target.result;
+                document.getElementById('db-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500"></span> Listo';
+                resolve(db);
+            };
+
+            request.onerror = (e) => {
+                console.error("Error al abrir la base de datos:", e.target.error);
+                document.getElementById('db-status').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> Error IDB';
+                reject(e.target.error);
+            };
+        });
+    }
+
+    function getStore(storeName, mode = 'readonly') {
+        const tx = db.transaction(storeName, mode);
+        return tx.objectStore(storeName);
+    }
+
+    function getByID(storeName, id) {
+        return new Promise((resolve, reject) => {
+            const store = getStore(storeName);
+            const request = store.get(id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = e => reject(e.target.error);
+        });
+    }
+
+    function getAll(storeName) {
+        return new Promise((resolve, reject) => {
+            const store = getStore(storeName);
+            const request = store.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = e => reject(e.target.error);
+        });
+    }
+
+    function save(storeName, data) {
+        return new Promise((resolve, reject) => {
+            const store = getStore(storeName, 'readwrite');
+            const request = store.put(data);
+            request.onsuccess = () => resolve(data);
+            request.onerror = e => reject(e.target.error);
+        });
+    }
+
+    function remove(storeName, id) {
+        return new Promise((resolve, reject) => {
+            const store = getStore(storeName, 'readwrite');
+            const request = store.delete(id);
+            request.onsuccess = () => resolve(true);
+            request.onerror = e => reject(e.target.error);
+        });
+    }
+
+    /* ============================================================
+       LÓGICA DE ASISTENCIAS (EVIDENCES) - (Mantenido del código anterior)
+       ============================================================ */
+    
+    // ... (Mantener las funciones parseOCRDate, validateCheckOutData, processImageForOCR)
+    // Nota: Por brevedad en la respuesta, estas funciones complejas de OCR no se repiten
+    // en la respuesta final, pero el usuario debe integrarlas de su archivo anterior (app.js).
+    // Para que la app sea funcional, las voy a incluir.
+    
+    let currentEvidence = {
+        entrada: null,
+        salida: null,
+        validatedCheckIn: null,
+        validatedCheckOut: null
+    };
+
+    /**
+     * Convierte una fecha de formato DD/MM/YY (OCR) a YYYY-MM-DD para comparación.
+     */
+    function parseOCRDate(ocrDateString) {
+        const parts = ocrDateString.split('/'); 
+        if (parts.length !== 3) return null;
+        const year = parseInt(parts[2], 10);
+        const currentYearShort = new Date().getFullYear() - 2000;
+        const fullYear = (year > currentYearShort + 10) ? 1900 + year : 2000 + year;
+        const month = parts[1].padStart(2, '0');
+        const day = parts[0].padStart(2, '0');
+        return `${fullYear}-${month}-${day}`;
+    }
+
+    /**
+     * Realiza todas las validaciones sobre el texto del OCR.
+     */
+    function validateCheckOutData(text, userSelectedDate) {
+        // Regex Maestra: Captura Fecha, Hora, Región, Cód. Numérico (5 dígitos), Cód. Alfanumérico.
+        const regex = /(\d{1,2}\/\d{1,2}\/\d{2}).*?(\d{1,2}:\d{2}\s*[ap]\.?\s*m\.?).*?(Región\s?\d+).*?(\d{5}).*?(\w+)/is;
+        const match = text.match(regex);
+        
+        const failedResult = { isValid: false, message: 'Fallo: No se encontraron todos los patrones requeridos.', code: null };
+        
+        if (!match) {
+            return failedResult;
+        }
+
+        const ocrDateStr = match[1];
+        const ocrAlphaCode = match[5];
+        
+        // VALIDACIÓN 1: FECHA
+        const ocrStandardDate = parseOCRDate(ocrDateStr);
+        
+        if (ocrStandardDate !== userSelectedDate) {
+            failedResult.message = `❌ La fecha de la imagen (${ocrDateStr}) no coincide con la fecha seleccionada (${userSelectedDate}).`;
+            return failedResult;
+        }
+
+        // VALIDACIÓN 2: CÓDIGO ALFANUMÉRICO NO DEBE CONTENER 'PMC'
+        if (ocrAlphaCode.toUpperCase().includes('PMC')) {
+            failedResult.message = `❌ El código final (${ocrAlphaCode}) contiene la secuencia prohibida 'PMC'.`;
+            return failedResult;
+        }
+
+        // ÉXITO
+        return {
+            isValid: true,
+            message: '✅ Validación exitosa.',
+            date: ocrDateStr,
+            time: match[2],
+            region: match[3],
+            numericCode: match[4],
+            alphaCode: ocrAlphaCode,
+            code: `${match[4]}-${ocrAlphaCode}` 
+        };
+    }
+
+    /**
+     * Ejecuta el proceso de OCR usando Tesseract.js.
+     */
+    async function processImageForOCR(imageFile) {
+        showToast('Iniciando OCR... proceso local y asíncrono.');
+        
+        const worker = await Tesseract.createWorker({
+            logger: m => {}
+        });
+
+        try {
+            await worker.loadLanguage('spa');
+            await worker.initialize('spa');
+            
+            const { data: { text } } = await worker.recognize(imageFile);
+            
+            return text.trim();
+
+        } catch (error) {
+            console.error('Error durante el OCR:', error);
+            showToast('Error crítico en el OCR. Intente con una imagen más clara.', true);
+            return null; 
+        } finally {
+            await worker.terminate();
+        }
+    }
+
+    /**
+     * Convierte el archivo de imagen a una cadena Base64 optimizada.
+     */
+    function fileToBase64(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 400; 
+                    const QUALITY = 0.5; 
+
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > MAX_WIDTH) {
+                        height = height * (MAX_WIDTH / width);
+                        width = MAX_WIDTH;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', QUALITY); 
+                    resolve(dataUrl);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+    
+    async function handleFileSelect(event, type) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        const selectedDate = document.getElementById('evidence-date').value; 
+        if (!selectedDate) {
+            return showToast('Error: Primero selecciona una fecha de evidencia.', true);
+        }
+
+        try {
+            const rawText = await processImageForOCR(file);
+            
+            if (!rawText) return;
+
+            const validationResult = validateCheckOutData(rawText, selectedDate);
+
+            if (!validationResult.isValid) {
+                return showToast(validationResult.message, true); 
+            }
+            
+            const base64Data = await fileToBase64(file);
+            currentEvidence[type] = base64Data;
+
+            if (type === 'entrada') {
+                currentEvidence.validatedCheckIn = validationResult;
+            } else if (type === 'salida') {
+                currentEvidence.validatedCheckOut = validationResult;
+            }
+
+            const previewEl = document.getElementById(`preview-${type}`);
+            previewEl.innerHTML = `<img src="${base64Data}" class="w-full h-full object-cover">`;
+
+            showToast(`${validationResult.message} Imagen de ${type} cargada.`);
+
+        } catch (e) {
+            showToast('Error procesando la imagen.', true);
+            console.error(e);
+        }
+    }
+
+
+    async function loadCurrentEvidence(userId, date) {
+        const evidenceId = `${userId}_${date}`;
+        const evidence = await getByID(STORES.EVIDENCES, evidenceId);
+
+        currentEvidence = { 
+            entrada: null, 
+            salida: null,
+            validatedCheckIn: null, 
+            validatedCheckOut: null
+        };
+        document.getElementById('preview-entrada').innerHTML = '<span class="text-slate-400 text-[10px]">Vacío</span>';
+        document.getElementById('preview-salida').innerHTML = '<span class="text-slate-400 text-[10px]">Vacío</span>';
+
+        if (evidence) {
+            currentEvidence.entrada = evidence.entrada;
+            currentEvidence.salida = evidence.salida;
+            currentEvidence.validatedCheckIn = evidence.validatedEntry || null;
+            currentEvidence.validatedCheckOut = evidence.validatedExit || null;
+
+            if (evidence.entrada) {
+                document.getElementById('preview-entrada').innerHTML = `<img src="${evidence.entrada}" class="w-full h-full object-cover">`;
+            }
+            if (evidence.salida) {
+                document.getElementById('preview-salida').innerHTML = `<img src="${evidence.salida}" class="w-full h-full object-cover">`;
+            }
+        }
+    }
+
+    async function saveEvidence() {
+        const date = document.getElementById('evidence-date').value;
+        
+        if (!activeUserId) return showToast('Error: No hay un usuario activo seleccionado.', true);
+        if (!date) return showToast('Error: Debes seleccionar una fecha.', true);
+        if (!currentEvidence.entrada && !currentEvidence.salida) return showToast('Debes subir al menos una foto (entrada o salida).', true);
+        
+        if ((currentEvidence.entrada && !currentEvidence.validatedCheckIn) || 
+            (currentEvidence.salida && !currentEvidence.validatedCheckOut)) {
+            return showToast('Error: Falta información validada para una o ambas fotos. Vuelve a cargar la imagen.', true);
+        }
+        
+        const evidenceId = `${activeUserId}_${date}`;
+        
+        const evidence = {
+            id: evidenceId,
+            userId: activeUserId,
+            fecha: date,
+            entrada: currentEvidence.entrada,
+            salida: currentEvidence.salida,
+            validatedEntry: currentEvidence.validatedCheckIn, 
+            validatedExit: currentEvidence.validatedCheckOut, 
+            timestamp: Date.now()
+        };
+
+        try {
+            await save(STORES.EVIDENCES, evidence);
+            showToast('Asistencia guardada correctamente.');
+            calculateUserStats(activeUserId);
+            if (!document.getElementById('ind-view-historial').classList.contains('hidden')) {
+                 renderUserChart(activeUserId);
+                 renderUserHistory(activeUserId);
+            }
+        } catch (e) {
+            showToast('Error al guardar la evidencia.', true);
+            console.error(e);
+        }
+    }
+
+    document.getElementById('evidence-date').addEventListener('change', (e) => {
+        if (activeUserId) {
+            loadCurrentEvidence(activeUserId, e.target.value);
+        }
+    });
+
+    /* ============================================================
+       ESTADISTICAS Y GRAFICOS
+       ============================================================ */
+    let userChartInstance = null;
+
+    async function calculateUserStats(userId) {
+        const allEvidences = await getAll(STORES.EVIDENCES);
+        const userEvidences = allEvidences.filter(e => e.userId === userId);
+        
+        const now = new Date();
+        const dayOfWeek = (now.getDay() + 6) % 7; 
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        let weekCount = 0;
+        const requiredDays = 6; 
+
+        userEvidences.forEach(e => {
+            const evidenceDate = new Date(e.fecha);
+            if (evidenceDate >= startOfWeek && evidenceDate.getTime() <= now.getTime()) {
+                if (e.entrada && e.salida) {
+                    if (evidenceDate.getDay() >= 1 && evidenceDate.getDay() <= 6) { // Lunes a Sábado
+                        weekCount++;
+                    }
+                }
+            }
+        });
+
+        const percent = Math.round((weekCount / requiredDays) * 100);
+        
+        document.getElementById('ind-weekly-count').textContent = weekCount;
+        document.getElementById('ind-weekly-percent').textContent = `${percent > 100 ? 100 : percent}%`;
+        document.getElementById('ind-total-count').textContent = userEvidences.length;
+    }
+
+    async function renderUserChart(userId) {
+        const allEvidences = await getAll(STORES.EVIDENCES);
+        const userEvidences = allEvidences.filter(e => e.userId === userId);
+        
+        const now = new Date();
+        const dayOfWeek = (now.getDay() + 6) % 7; 
+        const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+
+        const labels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+        const data = [0, 0, 0, 0, 0, 0, 0];
+        
+        userEvidences.forEach(e => {
+            const evidenceDate = new Date(e.fecha);
+            const day = (evidenceDate.getDay() + 6) % 7; 
+            
+            if (evidenceDate >= startOfWeek) {
+                if (e.entrada && e.salida) {
+                    data[day] = 1; 
+                } else if(e.entrada || e.salida) {
+                    data[day] = 0.5; 
+                }
+            }
+        });
+
+        const ctx = document.getElementById('userChart').getContext('2d');
+        
+        if (userChartInstance) {
+            userChartInstance.destroy();
+        }
+
+        userChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Asistencia Completa',
+                    data: data,
+                    backgroundColor: data.map(val => val === 1 ? 'rgba(59, 130, 246, 0.8)' : val === 0.5 ? 'rgba(251, 191, 36, 0.8)' : 'rgba(203, 213, 225, 0.8)'),
+                    borderColor: data.map(val => val === 1 ? 'rgba(59, 130, 246, 1)' : val === 0.5 ? 'rgba(251, 191, 36, 1)' : 'rgba(148, 163, 184, 1)'),
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 1.1,
+                        ticks: {
+                            callback: (value) => value === 1 ? 'Completo' : value === 0.5 ? 'Parcial' : ''
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    function renderUserHistory(userId) {
+        getAll(STORES.EVIDENCES)
+            .then(allEvidences => {
+                const userEvidences = allEvidences
+                    .filter(e => e.userId === userId)
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)); 
+
+                const list = document.getElementById('user-history-list');
+                
+                if (userEvidences.length === 0) {
+                     list.innerHTML = `<p class="p-4 text-center text-slate-400 text-sm">No hay registros de asistencia para este usuario.</p>`;
+                     return;
+                }
+                
+                list.innerHTML = userEvidences.map(e => {
+                    const isComplete = e.entrada && e.salida;
+                    const statusIcon = isComplete 
+                        ? '<i data-lucide="check-circle" class="w-4 h-4 text-green-500"></i>' 
+                        : '<i data-lucide="minus-circle" class="w-4 h-4 text-red-500"></i>';
+                    const statusText = isComplete ? 'Completa' : 'Incompleta';
+                    
+                    return `
+                        <div class="p-3 flex items-center justify-between hover:bg-slate-50">
+                            <div class="flex items-center gap-3">
+                                ${statusIcon}
+                                <div>
+                                    <p class="text-sm font-medium text-slate-800">${e.fecha}</p>
+                                    <p class="text-xs text-slate-500">${statusText}</p>
+                                </div>
+                            </div>
+                            <div class="text-xs text-slate-400">
+                                 ${e.entrada ? '<i data-lucide="image" class="w-4 h-4 inline mr-1"></i>E' : ''} 
+                                 ${e.salida ? '<i data-lucide="image" class="w-4 h-4 inline mr-1"></i>S' : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+                
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+
+            })
+            .catch(e => {
+                console.error("Error al renderizar el historial:", e);
+                showToast('Error cargando historial.', true);
+            });
+    }
+
+    /* ============================================================
+       GESTIÓN DE HORARIOS (SCHEDULES) - NUEVA LÓGICA
+       ============================================================ */
+    const DAYS_OF_WEEK = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    /**
+     * Muestra el horario asignado al usuario activo en el panel individual.
+     */
+    async function renderUserSchedule(userId) {
+        const scheduleListEl = document.getElementById('schedule-list');
+        const allSchedules = await getAll(STORES.SCHEDULES);
+        const userSchedules = allSchedules.filter(s => s.userId === userId);
+        
+        // Crear un mapa para fácil acceso por día
+        const scheduleMap = userSchedules.reduce((acc, s) => {
+            acc[s.day] = s;
+            return acc;
+        }, {});
+
+        let html = DAYS_OF_WEEK.map((day, index) => {
+            const schedule = scheduleMap[day];
+            const time = schedule ? `${schedule.start} - ${schedule.end}` : 'Día libre / Sin asignar';
+            const color = schedule ? 'text-green-600' : 'text-slate-500';
+
+            return `
+                <div class="flex justify-between items-center p-3">
+                    <span class="font-medium text-slate-800">${day}</span>
+                    <span class="${color} font-semibold text-sm">${time}</span>
+                </div>
+            `;
+        }).join('');
+
+        scheduleListEl.innerHTML = html;
+    }
+
+    /**
+     * Abre el modal para editar/crear horarios.
+     */
+    async function openScheduleModal() {
+        if (!activeUserId) return showToast('Selecciona un promotor primero.', true);
+
+        const allSchedules = await getAll(STORES.SCHEDULES);
+        const userSchedules = allSchedules.filter(s => s.userId === activeUserId);
+        const scheduleMap = userSchedules.reduce((acc, s) => { acc[s.day] = s; return acc; }, {});
+
+        const formContainer = document.getElementById('schedule-form-container');
+        formContainer.innerHTML = DAYS_OF_WEEK.map(day => {
+            const schedule = scheduleMap[day] || { start: '08:00', end: '18:00', enabled: true };
+            const isEnabled = schedule.enabled !== false;
+            
+            return `
+                <div class="flex items-center gap-4 py-3 border-b border-slate-100">
+                    <div class="w-24 font-medium text-slate-700">${day}</div>
+                    <input type="checkbox" id="sch-enabled-${day}" class="h-4 w-4 text-indigo-600 rounded" ${isEnabled ? 'checked' : ''} onchange="toggleScheduleFields('${day}')">
+                    <input type="time" id="sch-start-${day}" value="${schedule.start}" class="w-24 rounded-md border-slate-300 p-1 text-sm ${isEnabled ? '' : 'bg-slate-100 text-slate-500'}" ${isEnabled ? '' : 'disabled'}>
+                    <span class="text-slate-500">-</span>
+                    <input type="time" id="sch-end-${day}" value="${schedule.end}" class="w-24 rounded-md border-slate-300 p-1 text-sm ${isEnabled ? '' : 'bg-slate-100 text-slate-500'}" ${isEnabled ? '' : 'disabled'}>
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('schedule-modal').classList.remove('hidden');
+        setTimeout(() => document.querySelector('#schedule-modal .modal-content').classList.remove('scale-95', 'opacity-0'), 50);
+    }
+    
+    function toggleScheduleFields(day) {
+        const enabled = document.getElementById(`sch-enabled-${day}`).checked;
+        const start = document.getElementById(`sch-start-${day}`);
+        const end = document.getElementById(`sch-end-${day}`);
+        
+        start.disabled = !enabled;
+        end.disabled = !enabled;
+        start.classList.toggle('bg-slate-100', !enabled);
+        end.classList.toggle('bg-slate-100', !enabled);
+        start.classList.toggle('text-slate-500', !enabled);
+        end.classList.toggle('text-slate-500', !enabled);
+    }
+
+    function closeScheduleModal() {
+        document.querySelector('#schedule-modal .modal-content').classList.add('scale-95', 'opacity-0');
+        setTimeout(() => document.getElementById('schedule-modal').classList.add('hidden'), 300);
+    }
+
+    async function saveSchedules() {
+        const schedulesToSave = [];
+        
+        for (const day of DAYS_OF_WEEK) {
+            const enabled = document.getElementById(`sch-enabled-${day}`).checked;
+            const start = document.getElementById(`sch-start-${day}`).value;
+            const end = document.getElementById(`sch-end-${day}`).value;
+
+            const scheduleId = `${activeUserId}_${day.toLowerCase()}`;
+            
+            if (enabled) {
+                if (!start || !end) {
+                    return showToast(`Horario para ${day} incompleto.`, true);
+                }
+                schedulesToSave.push({ id: scheduleId, userId: activeUserId, day: day, start: start, end: end, enabled: true });
+            } else {
+                // Opción: eliminar el horario si está deshabilitado
+                try {
+                    await remove(STORES.SCHEDULES, scheduleId);
+                } catch (e) { /* Ignorar si no existe */ }
+            }
+        }
+
+        try {
+            // Guardar o actualizar los horarios habilitados
+            for (const schedule of schedulesToSave) {
+                await save(STORES.SCHEDULES, schedule);
+            }
+            showToast('Horarios guardados correctamente.');
+            closeScheduleModal();
+            renderUserSchedule(activeUserId);
+        } catch (e) {
+            showToast('Error al guardar horarios.', true);
+            console.error(e);
+        }
+    }
+
+
+    /* ============================================================
+       GESTIÓN DE DOCUMENTACIÓN (DOCUMENTS) - NUEVA LÓGICA
+       ============================================================ */
+
+    async function renderDocumentationView() {
+        // 1. Rellenar Select de Promotores
+        const allUsers = await getAll(STORES.USERS);
+        usersList = allUsers.sort((a, b) => a.name.localeCompare(b.name));
+        const userSelect = document.getElementById('doc-user-select');
+        userSelect.innerHTML = `<option value="">--- Seleccionar Promotor ---</option>` + 
+                                usersList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        
+        // 2. Renderizar Incapacidades Activas
+        await renderIncapacitiesList();
+
+        // Listener para cambiar de promotor y ver reportes
+        userSelect.onchange = () => renderWeeklyReportList(userSelect.value);
+
+        // Si hay un usuario activo, cargamos sus reportes por defecto
+        if (activeUserId) {
+             userSelect.value = activeUserId;
+             renderWeeklyReportList(activeUserId);
+        }
+    }
+    
+    /**
+     * Rellena la lista de Reportes Semanales para el usuario seleccionado.
+     */
+    async function renderWeeklyReportList(userId) {
+        const listEl = document.getElementById('weekly-report-list');
+        if (!userId) {
+             listEl.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">Selecciona un promotor para ver sus reportes.</p>`;
+             return;
+        }
+
+        const allDocs = await getAll(STORES.DOCUMENTS);
+        const reports = allDocs.filter(d => d.userId === userId && d.type === 'WeeklyReport')
+                                .sort((a, b) => new Date(b.week) - new Date(a.week)); 
+        
+        if (reports.length === 0) {
+            listEl.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">No hay reportes semanales registrados para este promotor.</p>`;
+            return;
+        }
+
+        listEl.innerHTML = reports.map(d => {
+            const statusText = STATUS_OPTIONS.WeeklyReport[d.status] || d.status;
+            let statusClass = 'bg-slate-100 text-slate-600';
+            if (d.status === 'Delivered') statusClass = 'bg-green-100 text-green-700';
+            if (d.status === 'Pending') statusClass = 'bg-red-100 text-red-700';
+
+            return `
+                <div class="p-4 border rounded-lg flex justify-between items-center hover:bg-slate-50">
+                    <div>
+                        <p class="font-medium text-slate-800">Semana: <span class="text-indigo-600">${d.week}</span></p>
+                        <p class="text-xs text-slate-500 truncate">${d.notes || 'Sin notas'}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold px-2 py-1 rounded-full ${statusClass}">${statusText}</span>
+                        <button onclick="openDocModal('WeeklyReport', '${d.id}')" class="text-slate-400 hover:text-indigo-600 p-1">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        lucide.createIcons();
+    }
+    
+    /**
+     * Rellena la lista de todas las Incapacidades activas/pendientes.
+     */
+    async function renderIncapacitiesList() {
+        const listEl = document.getElementById('incapacity-list');
+        const allDocs = await getAll(STORES.DOCUMENTS);
+        const incapacities = allDocs.filter(d => d.type === 'Incapacity')
+                                    .sort((a, b) => new Date(b.startDate) - new Date(a.startDate)); 
+
+        if (incapacities.length === 0) {
+            listEl.innerHTML = `<p class="text-center text-slate-400 text-sm py-4">No hay incapacidades registradas.</p>`;
+            return;
+        }
+
+        listEl.innerHTML = incapacities.map(d => {
+            const userName = usersList.find(u => u.id === d.userId)?.name || 'Desconocido';
+            const statusText = STATUS_OPTIONS.Incapacity[d.status] || d.status;
+            let statusClass = 'bg-slate-100 text-slate-600';
+            if (d.status === 'Approved') statusClass = 'bg-green-100 text-green-700';
+            if (d.status === 'Pending') statusClass = 'bg-yellow-100 text-yellow-700';
+
+            return `
+                <div class="p-3 border rounded-lg flex justify-between items-center hover:bg-red-50">
+                    <div>
+                        <p class="font-medium text-slate-800">${userName}</p>
+                        <p class="text-xs text-slate-500">${d.startDate} al ${d.endDate}</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold px-2 py-1 rounded-full ${statusClass}">${statusText}</span>
+                        <button onclick="openDocModal('Incapacity', '${d.id}')" class="text-slate-400 hover:text-red-600 p-1">
+                            <i data-lucide="pencil" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        lucide.createIcons();
+    }
+    
+    /**
+     * Abre el modal de documentos para crear/editar.
+     */
+    async function openDocModal(docType, docId = null) {
+        const modal = document.getElementById('doc-modal');
+        const userSelect = document.getElementById('doc-modal-user');
+        
+        // 1. Rellenar opciones de status
+        const statusSelect = document.getElementById('doc-modal-status');
+        statusSelect.innerHTML = Object.entries(STATUS_OPTIONS[docType])
+            .map(([key, value]) => `<option value="${key}">${value}</option>`).join('');
+
+        // 2. Rellenar select de usuarios (si aplica)
+        userSelect.innerHTML = usersList.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        
+        // 3. Configurar campos según el tipo
+        document.getElementById('doc-type-input').value = docType;
+        document.getElementById('doc-modal-title').textContent = docType === 'WeeklyReport' ? 'Registrar Reporte Semanal' : 'Registrar Incapacidad';
+        document.getElementById('doc-week-field').classList.toggle('hidden', docType === 'Incapacity');
+        document.getElementById('doc-end-date-field').classList.toggle('hidden', docType !== 'Incapacity');
+        
+        // 4. Modo EDICIÓN
+        if (docId) {
+            const doc = await getByID(STORES.DOCUMENTS, docId);
+            if (!doc) return showToast('Documento no encontrado.', true);
+            
+            document.getElementById('doc-edit-id').value = docId;
+            userSelect.value = doc.userId;
+            statusSelect.value = doc.status;
+            document.getElementById('doc-modal-notes').value = doc.notes || '';
+
+            if (docType === 'WeeklyReport') {
+                document.getElementById('doc-modal-week').value = doc.week; // Formato YYYY-Www
+            } else if (docType === 'Incapacity') {
+                document.getElementById('doc-modal-week').value = doc.startDate; // Reusa el campo para fecha de inicio
+                document.getElementById('doc-modal-end-date').value = doc.endDate || '';
+            }
+        } else {
+            // Modo CREACIÓN
+            document.getElementById('doc-edit-id').value = '';
+            userSelect.value = activeUserId || usersList[0]?.id || '';
+            document.getElementById('doc-modal-notes').value = '';
+            statusSelect.value = Object.keys(STATUS_OPTIONS[docType])[0]; // Default: Pending
+            document.getElementById('doc-modal-week').value = '';
+            document.getElementById('doc-modal-end-date').value = '';
+        }
+
+        modal.classList.remove('hidden');
+        setTimeout(() => document.querySelector('#doc-modal .modal-content').classList.remove('scale-95', 'opacity-0'), 50);
+    }
+    
+    function closeDocModal() {
+        document.querySelector('#doc-modal .modal-content').classList.add('scale-95', 'opacity-0');
+        setTimeout(() => document.getElementById('doc-modal').classList.add('hidden'), 300);
+    }
+
+    async function saveDocument() {
+        const docType = document.getElementById('doc-type-input').value;
+        const docId = document.getElementById('doc-edit-id').value;
+        const userId = document.getElementById('doc-modal-user').value;
+        const status = document.getElementById('doc-modal-status').value;
+        const notes = document.getElementById('doc-modal-notes').value.trim();
+
+        if (!userId) return showToast('Debe seleccionar un promotor.', true);
+
+        let docData = {
+            userId: userId,
+            type: docType,
+            status: status,
+            notes: notes,
+            timestamp: Date.now()
+        };
+        
+        // Validaciones específicas
+        if (docType === 'WeeklyReport') {
+            docData.week = document.getElementById('doc-modal-week').value; // YYYY-Www
+            if (!docData.week) return showToast('Debe seleccionar la Semana del reporte.', true);
+            docData.id = docId || `${docType}_${userId}_${docData.week}`;
+
+        } else if (docType === 'Incapacity') {
+            docData.startDate = document.getElementById('doc-modal-week').value; // Se reusa el campo week como fecha de inicio
+            docData.endDate = document.getElementById('doc-modal-end-date').value;
+            if (!docData.startDate || !docData.endDate) return showToast('Las fechas de Incapacidad son obligatorias.', true);
+            docData.id = docId || `${docType}_${userId}_${Date.now()}`;
+        }
+
+        try {
+            await save(STORES.DOCUMENTS, docData);
+            showToast(`Documento (${docType}) guardado correctamente.`);
+            closeDocModal();
+            // Actualizar listas
+            renderDocumentationView(); 
+        } catch (e) {
+            showToast('Error al guardar el documento.', true);
+            console.error(e);
+        }
+    }
+
+
+    /* ============================================================
+       SINCRONIZACION GIST (Actualizada para nuevas tiendas)
+       ============================================================ */
+
+    const GIST_FILE_NAME = 'gestion_asistencias_pro_full.json';
+
+    async function getGistConfig() {
+        const gistIdObj = await getByID(STORES.CONFIG, 'gistId');
+        const gistTokenObj = await getByID(STORES.CONFIG, 'gistToken');
+        
+        const gistId = gistIdObj ? gistIdObj.value : '';
+        const gistToken = gistTokenObj ? gistTokenObj.value : '';
+
+        const idEl = document.getElementById('gist-id');
+        const tokenEl = document.getElementById('gist-token');
+
+        if (idEl) idEl.value = gistId;
+        if (tokenEl) tokenEl.value = gistToken;
+
+        return { id: gistId, token: gistToken };
+    }
+
+    async function saveGistConfig() {
+        const id = document.getElementById('gist-id').value.trim();
+        const token = document.getElementById('gist-token').value.trim();
+
+        if (!id || !token) {
+            return showToast('ID y Token de Gist son obligatorios.', true);
+        }
+
+        try {
+            await save(STORES.CONFIG, { key: 'gistId', value: id });
+            await save(STORES.CONFIG, { key: 'gistToken', value: token });
+            showToast('Configuración de Gist guardada.');
+        } catch (e) {
+            showToast('Error al guardar la configuración.', true);
+        }
+    }
+
+    async function syncFromGist() {
+        const config = await getGistConfig();
+        if (!config.id || !config.token) { 
+            return showToast('Configuración de Gist incompleta (Token y ID).', true);
+        }
+
+        showToast('Descargando datos desde Gist...');
+        
+        try {
+            const response = await fetch(`https://api.github.com/gists/${config.id}`, {
+                headers: { 'Authorization': `token ${config.token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const content = data.files[GIST_FILE_NAME]?.content;
+
+            if (!content) {
+                 showToast(`El Gist existe, pero no se encontró el archivo ${GIST_FILE_NAME}. Crea el archivo con contenido {}.`, true);
+                 return;
+            }
+
+            const remoteData = JSON.parse(content);
+            
+            // Reemplazar TODAS las tiendas
+            await replaceAll(STORES.USERS, remoteData.users || []);
+            await replaceAll(STORES.EVIDENCES, remoteData.evidences || []);
+            await replaceAll(STORES.SCHEDULES, remoteData.schedules || []); // NUEVO
+            await replaceAll(STORES.DOCUMENTS, remoteData.documents || []); // NUEVO
+            
+            // Recargar la UI
+            usersList = await getAll(STORES.USERS);
+            renderTeamGrid(usersList);
+            
+            showToast("Datos descargados y sincronizados correctamente.");
+
+        } catch (e) {
+            console.error(e);
+            showToast("Error descargando de Gist: " + (e.message || e), true);
+        }
+    }
+
+    async function syncToGist() {
+        const config = await getGistConfig();
+        if (!config.id || !config.token) {
+            return showToast('Configuración de Gist incompleta (Token y ID).', true);
+        }
+        
+        showToast('Subiendo datos a Gist...');
+
+        try {
+            // Obtener todos los datos locales, incluyendo los nuevos
+            const users = await getAll(STORES.USERS);
+            const evidences = await getAll(STORES.EVIDENCES);
+            const schedules = await getAll(STORES.SCHEDULES); // NUEVO
+            const documents = await getAll(STORES.DOCUMENTS); // NUEVO
+            
+            const localData = {
+                users: users,
+                evidences: evidences,
+                schedules: schedules, // NUEVO
+                documents: documents, // NUEVO
+                timestamp: Date.now()
+            };
+
+            const jsonContent = JSON.stringify(localData, null, 2);
+
+            const payload = {
+                description: `Backup de Asistencias PRO - ${new Date().toLocaleString()}`,
+                files: {
+                    [GIST_FILE_NAME]: { content: jsonContent }
+                }
+            };
+
+            const upload = await fetch(`https://api.github.com/gists/${config.id}`, {
+                method: 'PATCH', 
+                headers: {
+                    'Authorization': `token ${config.token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!upload.ok) throw new Error(`HTTP ${upload.status}`);
+
+            showToast("Sincronización completada y subida correctamente.");
+
+        } catch (e) {
+            console.error(e);
+            showToast("Error subiendo a Gist: " + (e.message || e), true);
+        }
+    }
+
+    /* ============================================================
+       REPLACE ALL Y LIMPIEZA
+       ============================================================ */
+    
+    /**
+     * Borra todos los datos de un Object Store y añade un nuevo conjunto de datos.
+     */
+    function replaceAll(storeName, dataArray) {
+        return new Promise((resolve, reject) => {
+            const tx = db.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+
+            const clearReq = store.clear();
+            clearReq.onsuccess = () => {
+                let i = 0;
+                (function addNext() {
+                    if (i >= dataArray.length) { 
+                        resolve(); 
+                        return; 
+                    }
+                    const item = dataArray[i++];
+                    const addReq = store.add(item);
+                    addReq.onsuccess = addNext;
+                    addReq.onerror = e => reject(e.target.error);
+                })();
+            };
+            clearReq.onerror = e => reject(e.target.error);
+        });
+    }
+
+    async function cleanOldEvidence() {
+        if (!confirm("ADVERTENCIA: ¿Estás seguro de que quieres borrar PERMANENTEMENTE todas las asistencias con más de 30 días de antigüedad? Esta acción se sincronizará con Gist.")) {
+            return;
+        }
+
+        showToast('Iniciando limpieza de historial...');
+
+        try {
+            const allEvidences = await getAll(STORES.EVIDENCES);
+            const now = Date.now();
+            const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000; 
+            const cutoffTime = now - THIRTY_DAYS_MS;
+            
+            let deletedCount = 0;
+            
+            for (const evidence of allEvidences) {
+                const evidenceDate = new Date(evidence.fecha).getTime();
+
+                if (evidenceDate < cutoffTime) {
+                    await remove(STORES.EVIDENCES, evidence.id);
+                    deletedCount++;
+                }
+            }
+            
+            if (deletedCount > 0) {
+                showToast(`${deletedCount} registros antiguos borrados localmente.`);
+                await syncToGist();
+                if (activeUserId && !document.getElementById('ind-view-historial').classList.contains('hidden')) {
+                    renderUserHistory(activeUserId);
+                }
+                showToast(`Limpieza completada y sincronizada con Gist. Archivos borrados: ${deletedCount}.`);
+            } else {
+                showToast('No se encontraron registros de más de 30 días para borrar.');
+            }
+        } catch (e) {
+            console.error("Error durante la limpieza del historial:", e);
+            showToast('Error crítico al intentar limpiar el historial.', true);
+        }
+    }
+
+
+    /* ============================================================
+       INICIALIZACIÓN
+       ============================================================ */
+    document.addEventListener('DOMContentLoaded', async () => {
+        try {
+            await openDB();
+            
+            usersList = await getAll(STORES.USERS);
+            renderTeamGrid(usersList);
+            await getGistConfig(); 
+            renderDocumentationView(); // Inicializar el panel de documentos
+            
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+        } catch (e) {
+            console.error("Error al inicializar la aplicación:", e);
+        }
+    });
+
+    // Se mantiene la función renderUserCard, openUserModal, closeUserModal, saveUser, deleteUser, renderTeamGrid
+    // del código anterior para evitar repetir todo el CRUD de USERS.
+    
+    // Funciones del CRUD de USERS (necesarias para la app)
+    function renderUserCard(user) {
+        const activeClass = user.active ? 'bg-white border-slate-200' : 'bg-slate-100 border-slate-300 opacity-60';
+        const activeText = user.active ? 'Activo' : 'Inactivo';
+        const userJsonString = JSON.stringify(user).replace(/"/g, '&quot;');
+        return `
+            <div class="user-card ${activeClass} rounded-xl shadow-md p-4 flex items-center gap-4 cursor-pointer hover:shadow-lg transition duration-200" 
+                 onclick="openUserPanel('${user.id}', '${user.name.replace(/'/g, "\\'")}', '${user.branch.replace(/'/g, "\\'")}')">
+                <div class="w-10 h-10 rounded-full bg-indigo-500 text-white flex items-center justify-center font-bold text-sm flex-shrink-0 uppercase">${getInitials(user.name)}</div>
+                <div class="flex-grow">
+                    <p class="font-bold text-sm text-slate-800 truncate">${user.name}</p>
+                    <p class="text-xs text-slate-500 flex items-center gap-1">
+                        <i data-lucide="store" class="w-3 h-3"></i> ${user.branch}
+                    </p>
+                </div>
+                <div class="text-right flex-shrink-0">
+                    <span class="text-[10px] font-bold ${user.active ? 'text-green-600' : 'text-red-500'}">${activeText}</span>
+                    <button onclick="event.stopPropagation(); openUserModal(${userJsonString})" class="text-slate-400 hover:text-slate-600 p-1 block mt-0.5" aria-label="Editar usuario">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    async function renderTeamGrid(users) {
+        const grid = document.getElementById('team-grid');
+        if (!users || users.length === 0) {
+            grid.innerHTML = `<div class="p-8 text-center text-slate-400 col-span-full bg-white rounded-xl border border-dashed border-slate-300">No hay promotores registrados.</div>`;
+            return;
+        }
+        
+        const activeUsers = users.filter(u => u.active).sort((a, b) => a.name.localeCompare(b.name));
+        const inactiveUsers = users.filter(u => !u.active).sort((a, b) => a.name.localeCompare(b.name));
+
+        const html = [...activeUsers, ...inactiveUsers].map(user => renderUserCard(user)).join('');
+        grid.innerHTML = html;
+        
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+
+    function openUserModal(user = null) {
+        const modal = document.getElementById('user-modal');
+        const content = document.getElementById('user-modal-content');
+        const btnDelete = document.getElementById('btn-delete-user');
+        
+        document.getElementById('edit-user-id').value = user ? user.id : 'new';
+        document.getElementById('input-name').value = user ? user.name : '';
+        document.getElementById('input-branch').value = user ? user.branch : '';
+        document.getElementById('input-active').checked = user ? user.active : true;
+
+        document.getElementById('modal-title').textContent = user ? `Editar a ${user.name}` : 'Añadir Nuevo Promotor';
+        btnDelete.classList.toggle('hidden', !user);
+
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 50);
+    }
+
+    function closeUserModal() {
+        const modal = document.getElementById('user-modal');
+        const content = document.getElementById('user-modal-content');
+        
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
+
+    async function saveUser() {
+        const userId = document.getElementById('edit-user-id').value;
+        const name = document.getElementById('input-name').value.trim();
+        const branch = document.getElementById('input-branch').value.trim();
+        const active = document.getElementById('input-active').checked;
+
+        if (!name || !branch) {
+            return showToast('El nombre y la sucursal son obligatorios.', true);
+        }
+
+        const user = {
+            id: userId === 'new' ? `user_${Date.now()}` : userId,
+            name: name,
+            branch: branch,
+            active: active,
+            updated: Date.now()
+        };
+
+        try {
+            await save(STORES.USERS, user);
+            showToast(`Promotor "${name}" guardado.`);
+            closeUserModal();
+            usersList = await getAll(STORES.USERS);
+            renderTeamGrid(usersList);
+        } catch (e) {
+            showToast('Error al guardar el promotor.', true);
+            console.error(e);
+        }
+    }
+
+    async function deleteUser() {
+        const userId = document.getElementById('edit-user-id').value;
+        if (confirm("¿Estás seguro de que quieres eliminar este promotor y todas sus asistencias/documentos/horarios?")) {
+            try {
+                // Eliminar usuario
+                await remove(STORES.USERS, userId);
+                
+                // Limpiar sus datos relacionados (Opcional pero recomendado)
+                const storesToClean = [STORES.EVIDENCES, STORES.SCHEDULES, STORES.DOCUMENTS];
+                for (const storeName of storesToClean) {
+                    const allItems = await getAll(storeName);
+                    const userItems = allItems.filter(item => item.userId === userId);
+                    for (const item of userItems) {
+                        await remove(storeName, item.id);
+                    }
+                }
+
+                showToast('Promotor y datos eliminados.');
+                closeUserModal();
+                usersList = await getAll(STORES.USERS);
+                renderTeamGrid(usersList);
+                showTab('team');
+            } catch (e) {
+                showToast('Error al eliminar el promotor.', true);
+                console.error(e);
+            }
+        }
+    }
+
+</script>
+
+<!-- SERVICE WORKER registro: Mantenemos el registro al final del JS principal -->
+<script>
+    if ('serviceWorker' in navigator) {
+      // Nota: Asegúrate de que el archivo sw.js esté en la ruta correcta, 
+      // probablemente en la raíz si estás usando './sw.js'.
+      navigator.serviceWorker.register('./sw.js').then(()=> console.log('SW registrado')).catch(e => console.warn('SW error', e));
+    }
+</script>
+
+</body>
+</html>
+
