@@ -1,17 +1,15 @@
-const CACHE_NAME = 'asistenciaspro-cache-v4'; // Nueva versión para forzar la actualización
+const CACHE_NAME = 'asistenciaspro-cache-v4';
 const CDN_CACHE_NAME = 'cdn-cache-v1';
 
-// Recursos locales a precachear
 const ASSETS_TO_PRECACHE = [
-  './', // Ruta raíz
+  './',
   './index.html',
   './assets/js/app.js',
   './manifest.json',
   './assets/icons/icon-192x192.png',
-  './assets/icons/icon-144x144.png' // Agregado para evitar el 404 del manifest
+  './assets/icons/icon-144x144.png'
 ];
 
-// Evento de Instalación: Pre-cache de archivos locales
 self.addEventListener('install', (e) => {
   console.log('[SW] Instalando y precacheando recursos locales...');
   e.waitUntil(
@@ -23,7 +21,6 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// Evento de Activación: Limpia cachés antiguas
 self.addEventListener('activate', (e) => {
   console.log('[SW] Activado. Limpiando cachés antiguas...');
   e.waitUntil(
@@ -41,53 +38,63 @@ self.addEventListener('activate', (e) => {
   return self.clients.claim();
 });
 
-// Evento de Fetch
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
-  // 1. Estrategia para CDNs
+  // CDN strategy
   if (
     url.origin === 'https://cdn.jsdelivr.net' ||
     url.origin === 'https://unpkg.com' ||
     url.origin === 'https://cdn.tailwindcss.com'
   ) {
-    e.respondWith(
-      caches.open(CDN_CACHE_NAME).then((cache) => {
-        return cache.match(e.request).then((response) => {
-          if (response) {
-            return response;
-          }
-          return fetch(e.request).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(e.request, networkResponse.clone());
-            }
-            return networkResponse;
-          }).catch(() => {
-            return new Response(
-              'Error: CDN resource not found in cache and network failed.',
-              { status: 503 }
-            );
-          });
-        });
-      })
-    );
+    e.respondWith(handleCDNRequest(e.request));
     return;
   }
 
-  // 2. Estrategia para recursos locales
-  e.respondWith(
-    caches.match(e.request).then((cachedResponse) => {
-      return fetch(e.request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone(); // Clonamos inmediatamente
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, responseToCache);
-          });
-        }
-        return networkResponse;
-      }).catch(() => {
-        return cachedResponse;
-      });
-    })
-  );
+  // Local assets strategy
+  e.respondWith(handleLocalRequest(e.request, e));
 });
+
+async function handleCDNRequest(request) {
+  const cache = await caches.open(CDN_CACHE_NAME);
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) {
+    return cachedResponse;
+  }
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      // Clonar antes de usarla para cachear
+      const responseClone = networkResponse.clone();
+      cache.put(request, responseClone);
+    }
+    return networkResponse;
+  } catch (err) {
+    return new Response(
+      'Error: CDN resource not found in cache and network failed.',
+      { status: 503 }
+    );
+  }
+}
+
+async function handleLocalRequest(request, event) {
+  const cachedResponse = await caches.match(request);
+  try {
+    const networkResponse = await fetch(request);
+    if (networkResponse && networkResponse.status === 200) {
+      // Clonamos para cachear antes de dar la respuesta al cliente
+      const responseToCache = networkResponse.clone();
+      const cache = await caches.open(CACHE_NAME);
+      // Use event.waitUntil para evitar que el Service Worker muera antes de cachear
+      event.waitUntil(cache.put(request, responseToCache));
+    }
+    return networkResponse;
+  } catch (err) {
+    // Si falla la red, devolvemos lo cacheado si existe
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    // Aquí puedes decidir devolver un fallback si nada
+    return new Response('Offline y recurso no encontrado.', { status: 504 });
+  }
+}
